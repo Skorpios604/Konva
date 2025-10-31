@@ -50,6 +50,13 @@ export default function CountertopDesigner() {
     setPoints([]);
   };
 
+  // Undo last point
+  const handleUndo = () => {
+    if (points.length >= 2) {
+      setPoints(points.slice(0, -2));
+    }
+  };
+
   return (
     <div className="flex flex-col items-center p-8 bg-gray-100 min-h-screen">
       <h1 className="text-2xl font-bold mb-4 text-gray-800">Countertop Designer</h1>
@@ -110,6 +117,13 @@ export default function CountertopDesigner() {
         <div className="text-gray-700 font-medium text-lg">
           📐 Area: {Math.round(area)} sq px
         </div>
+        <button
+          onClick={handleUndo}
+          disabled={points.length === 0}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+        >
+          Undo
+        </button>
         <button
           onClick={handleClear}
           className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
