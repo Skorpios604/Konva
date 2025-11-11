@@ -2,14 +2,15 @@ import React, { useState, useRef, useEffect } from "react";
 import { Stage, Layer, Line, Circle, Rect } from "react-konva";
 
 const GRID_SIZE = 25;
-
-// Helper: snap value to grid
 const snap = (val) => Math.round(val / GRID_SIZE) * GRID_SIZE;
 
 export default function CountertopDesigner() {
-  const [points, setPoints] = useState([]);
+  const [points, setPoints] = useState([]); // flat array [x1, y1, x2, y2, ...]
   const [area, setArea] = useState(0);
+  const [tempPoint, setTempPoint] = useState(null); // for preview while dragging
   const layerRef = useRef();
+  const stageRef = useRef();
+  const [isDrawing, setIsDrawing] = useState(false);
 
   // Compute polygon area
   useEffect(() => {
@@ -33,52 +34,69 @@ export default function CountertopDesigner() {
     setPoints(newPoints);
   };
 
-  // Handle canvas click to add points
-  const handleStageClick = (e) => {
-    // Only add point if clicking on the stage/background, not on existing elements
-    if (e.target === e.target.getStage() || e.target.getClassName() === 'Rect') {
-      const stage = e.target.getStage();
-      const pointerPos = stage.getPointerPosition();
-      const x = snap(pointerPos.x);
-      const y = snap(pointerPos.y);
-      setPoints([...points, x, y]);
-    }
+  // Start line on mouse down
+  const handleMouseDown = (e) => {
+    if (e.target !== e.target.getStage() && e.target.getClassName() !== 'Rect') return;
+
+    const stage = e.target.getStage();
+    const pos = stage.getPointerPosition();
+    const x = snap(pos.x);
+    const y = snap(pos.y);
+
+    setTempPoint([x, y]); // start point
+    setIsDrawing(true);
+  };
+
+  // Update temporary line as we drag
+  const handleMouseMove = (e) => {
+    if (!isDrawing || !tempPoint) return;
+    const stage = e.target.getStage();
+    const pos = stage.getPointerPosition();
+    const x = snap(pos.x);
+    const y = snap(pos.y);
+
+    setTempPoint([tempPoint[0], tempPoint[1], x, y]); // preview line
+  };
+
+  // Finish line on mouse up
+  const handleMouseUp = (e) => {
+    if (!isDrawing || !tempPoint) return;
+    const stage = e.target.getStage();
+    const pos = stage.getPointerPosition();
+    const x = snap(pos.x);
+    const y = snap(pos.y);
+
+    // Add start and end point to flat array
+    setPoints([...points, tempPoint[0], tempPoint[1], x, y]);
+
+    setTempPoint(null);
+    setIsDrawing(false);
   };
 
   // Clear all points
-  const handleClear = () => {
-    setPoints([]);
-  };
+  const handleClear = () => setPoints([]);
 
-  // Undo last point
-  const handleUndo = () => {
-    if (points.length >= 2) {
-      setPoints(points.slice(0, -2));
-    }
-  };
+  // Undo last line (last 2 points)
+  const handleUndo = () => setPoints(points.slice(0, -4));
 
   return (
     <div className="flex flex-col items-center p-8 bg-gray-100 min-h-screen">
       <h1 className="text-2xl font-bold mb-4 text-gray-800">Countertop Designer</h1>
-      
+
       <div className="bg-white p-4 rounded-lg shadow-lg">
-        <Stage 
-          width={800} 
-          height={600} 
-          onClick={handleStageClick}
+        <Stage
+          width={800}
+          height={600}
+          ref={stageRef}
           style={{ border: '2px solid #9ca3af', borderRadius: '4px' }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
         >
           <Layer ref={layerRef}>
-            {/* White background */}
-            <Rect
-              x={0}
-              y={0}
-              width={800}
-              height={600}
-              fill="white"
-            />
+            <Rect x={0} y={0} width={800} height={600} fill="white" />
 
-            {/* Countertop shape */}
+            {/* Draw finalized lines */}
             {points.length > 0 && (
               <Line
                 points={points}
@@ -86,6 +104,16 @@ export default function CountertopDesigner() {
                 fill="#b3e5fc"
                 stroke="#0288d1"
                 strokeWidth={2}
+              />
+            )}
+
+            {/* Draw temporary line while dragging */}
+            {isDrawing && tempPoint && tempPoint.length === 4 && (
+              <Line
+                points={tempPoint}
+                stroke="#0288d1"
+                strokeWidth={2}
+                dash={[4, 4]}
               />
             )}
 
@@ -131,9 +159,9 @@ export default function CountertopDesigner() {
           Clear
         </button>
       </div>
-      
+
       <div className="mt-4 text-gray-600 text-sm">
-        Click on the canvas to add points. Drag points to adjust shape.
+        Click to start a line, drag to the next point, release to finish. Drag points to adjust shape.
       </div>
     </div>
   );
