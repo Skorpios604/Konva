@@ -1,167 +1,129 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Stage, Layer, Line, Circle, Rect } from "react-konva";
+import React, { useState } from "react";
+import { Stage, Layer, Line, Circle } from "react-konva";
 
-const GRID_SIZE = 25;
-const snap = (val) => Math.round(val / GRID_SIZE) * GRID_SIZE;
-
-export default function CountertopDesigner() {
-  const [points, setPoints] = useState([]); // flat array [x1, y1, x2, y2, ...]
-  const [area, setArea] = useState(0);
-  const [tempPoint, setTempPoint] = useState(null); // for preview while dragging
-  const layerRef = useRef();
-  const stageRef = useRef();
+export default function ContinuousPointConnections() {
+  const [circles, setCircles] = useState([]);
+  const [lines, setLines] = useState([]);
+  const [tempLine, setTempLine] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [currentCircle, setCurrentCircle] = useState(null);
 
-  // Compute polygon area
-  useEffect(() => {
-    const calcArea = (pts) => {
-      if (pts.length < 6) return 0;
-      let a = 0;
-      for (let i = 0; i < pts.length; i += 2) {
-        const j = (i + 2) % pts.length;
-        a += pts[i] * pts[j + 1] - pts[j] * pts[i + 1];
-      }
-      return Math.abs(a / 2);
-    };
-    setArea(calcArea(points));
-  }, [points]);
+  // helper: create a new circle object
+  const createCircle = (x, y, color) => ({
+    x,
+    y,
+    radius: 12,
+    fill: color,
+  });
 
-  // Handle point drag
-  const handleDragMove = (index, e) => {
-    const newPoints = [...points];
-    newPoints[index * 2] = snap(e.target.x());
-    newPoints[index * 2 + 1] = snap(e.target.y());
-    setPoints(newPoints);
+  // handle stage mouse down (first point)
+  const handleStageMouseDown = (e) => {
+    // only trigger if clicked directly on the stage (not on a shape)
+    if (e.target !== e.target.getStage()) return;
+
+    if (!currentCircle) {
+      const stage = e.target.getStage();
+      const pos = stage.getPointerPosition();
+      const newCircle = createCircle(pos.x, pos.y, "dodgerblue");
+      setCircles([newCircle]);
+      setCurrentCircle(newCircle);
+    }
   };
 
-  // Start line on mouse down
-  const handleMouseDown = (e) => {
-    if (e.target !== e.target.getStage() && e.target.getClassName() !== 'Rect') return;
-
-    const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
-    const x = snap(pos.x);
-    const y = snap(pos.y);
-
-    setTempPoint([x, y]); // start point
+  // handle circle click (start drawing from that circle)
+  const handleCircleMouseDown = (circle) => {
     setIsDrawing(true);
+    const p = circle;
+    setTempLine({
+      points: [p.x, p.y, p.x, p.y],
+    });
+    setCurrentCircle(circle);
   };
 
-  // Update temporary line as we drag
+  // handle mouse move
   const handleMouseMove = (e) => {
-    if (!isDrawing || !tempPoint) return;
+    if (!isDrawing || !tempLine || !currentCircle) return;
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
-    const x = snap(pos.x);
-    const y = snap(pos.y);
-
-    setTempPoint([tempPoint[0], tempPoint[1], x, y]); // preview line
+    setTempLine({
+      points: [currentCircle.x, currentCircle.y, pos.x, pos.y],
+    });
   };
 
-  // Finish line on mouse up
+  // handle mouse up (finish line)
   const handleMouseUp = (e) => {
-    if (!isDrawing || !tempPoint) return;
+    if (!isDrawing || !tempLine) return;
+    setIsDrawing(false);
+
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
-    const x = snap(pos.x);
-    const y = snap(pos.y);
 
-    // Add start and end point to flat array
-    setPoints([...points, tempPoint[0], tempPoint[1], x, y]);
+    const newCircle = createCircle(pos.x, pos.y, "orange");
+    const newLine = {
+      points: [currentCircle.x, currentCircle.y, newCircle.x, newCircle.y],
+    };
 
-    setTempPoint(null);
-    setIsDrawing(false);
+    setLines((prev) => [...prev, newLine]);
+    setCircles((prev) => [...prev, newCircle]);
+    setCurrentCircle(newCircle);
+    setTempLine(null);
   };
-
-  // Clear all points
-  const handleClear = () => setPoints([]);
-
-  // Undo last line (last 2 points)
-  const handleUndo = () => setPoints(points.slice(0, -4));
 
   return (
-    <div className="flex flex-col items-center p-8 bg-gray-100 min-h-screen">
-      <h1 className="text-2xl font-bold mb-4 text-gray-800">Countertop Designer</h1>
+    <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
+      <h1 className="text-2xl font-semibold mb-4 text-gray-800">
+        Continuous Point Connections
+      </h1>
 
-      <div className="bg-white p-4 rounded-lg shadow-lg">
-        <Stage
-          width={800}
-          height={600}
-          ref={stageRef}
-          style={{ border: '2px solid #9ca3af', borderRadius: '4px' }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-        >
-          <Layer ref={layerRef}>
-            <Rect x={0} y={0} width={800} height={600} fill="white" />
+      <Stage
+        width={800}
+        height={600}
+        onMouseDown={handleStageMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        style={{ border: "2px solid #ccc", borderRadius: "4px" }}
+      >
+        <Layer>
+          {/* Draw lines */}
+          {lines.map((line, i) => (
+            <Line
+              key={i}
+              points={line.points}
+              stroke="black"
+              strokeWidth={2}
+              lineCap="round"
+              lineJoin="round"
+            />
+          ))}
 
-            {/* Draw finalized lines */}
-            {points.length > 0 && (
-              <Line
-                points={points}
-                closed
-                fill="#b3e5fc"
-                stroke="#0288d1"
-                strokeWidth={2}
-              />
-            )}
+          {/* Temporary line */}
+          {isDrawing && tempLine && (
+            <Line
+              points={tempLine.points}
+              stroke="black"
+              strokeWidth={2}
+              dash={[4, 4]}
+            />
+          )}
 
-            {/* Draw temporary line while dragging */}
-            {isDrawing && tempPoint && tempPoint.length === 4 && (
-              <Line
-                points={tempPoint}
-                stroke="#0288d1"
-                strokeWidth={2}
-                dash={[4, 4]}
-              />
-            )}
-
-            {/* Drag handles */}
-            {points.reduce((acc, _, i) => {
-              if (i % 2 === 0) {
-                acc.push(
-                  <Circle
-                    key={i}
-                    x={points[i]}
-                    y={points[i + 1]}
-                    radius={8}
-                    fill="#0288d1"
-                    stroke="#fff"
-                    strokeWidth={2}
-                    draggable
-                    onDragMove={(e) => handleDragMove(i / 2, e)}
-                  />
-                );
-              }
-              return acc;
-            }, [])}
-          </Layer>
-        </Stage>
-      </div>
-
-      {/* Controls */}
-      <div className="mt-4 flex gap-4 items-center">
-        <div className="text-gray-700 font-medium text-lg">
-          📐 Area: {Math.round(area)} sq px
-        </div>
-        <button
-          onClick={handleUndo}
-          disabled={points.length === 0}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
-        >
-          Undo
-        </button>
-        <button
-          onClick={handleClear}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
-        >
-          Clear
-        </button>
-      </div>
+          {/* Circles */}
+          {circles.map((c, i) => (
+            <Circle
+              key={i}
+              x={c.x}
+              y={c.y}
+              radius={c.radius}
+              fill={c.fill}
+              onMouseDown={() => handleCircleMouseDown(c)}
+            />
+          ))}
+        </Layer>
+      </Stage>
 
       <div className="mt-4 text-gray-600 text-sm">
-        Click to start a line, drag to the next point, release to finish. Drag points to adjust shape.
+        {circles.length === 0
+          ? "Click anywhere to place the first point."
+          : "Click the last point to continue drawing."}
       </div>
     </div>
   );
