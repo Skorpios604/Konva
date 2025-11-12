@@ -69,11 +69,43 @@ export default function ContinuousPointConnections() {
     setTempLine(null);
   };
 
+  // handle undo (remove last point)
+  const handleUndo = () => {
+    if (circles.length === 0) return;
+
+    setCircles((prev) => {
+      const updated = [...prev];
+      updated.pop();
+      return updated;
+    });
+
+    setLines((prev) => {
+      const updated = [...prev];
+      updated.pop();
+      return updated;
+    });
+
+    if (circles.length > 1) {
+      setCurrentCircle(circles[circles.length - 2]);
+    } else {
+      setCurrentCircle(null);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center p-6 bg-white min-h-screen">
-      <h1 className="text-2xl font-semibold mb-4 text-gray-800">
-        Continuous Point Connections
-      </h1>
+      <div className="flex gap-4 items-center mb-4">
+        <h1 className="text-2xl font-semibold text-gray-800">
+          Continuous Point Connections
+        </h1>
+        <button
+          onClick={handleUndo}
+          disabled={circles.length === 0}
+          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+        >
+          Undo
+        </button>
+      </div>
 
       <Stage
         width={800}
