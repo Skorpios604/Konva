@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Stage, Layer, Line, Circle } from "react-konva";
+import { Stage, Layer, Line, Circle, Rect } from "react-konva";
 
 export default function ContinuousPointConnections() {
   const [circles, setCircles] = useState([]);
@@ -70,7 +70,7 @@ export default function ContinuousPointConnections() {
   };
 
   return (
-    <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
+    <div className="flex flex-col items-center p-6 bg-white min-h-screen">
       <h1 className="text-2xl font-semibold mb-4 text-gray-800">
         Continuous Point Connections
       </h1>
@@ -81,9 +81,11 @@ export default function ContinuousPointConnections() {
         onMouseDown={handleStageMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        style={{ border: "2px solid #ccc", borderRadius: "4px" }}
+        style={{ background: "white", border: "2px solid #ccc", borderRadius: "4px" }}
       >
         <Layer>
+          {/* background rect so canvas is always white */}
+          <Rect x={0} y={0} width={800} height={600} fill="white" listening={false} />
           {/* Draw lines */}
           {lines.map((line, i) => (
             <Line
